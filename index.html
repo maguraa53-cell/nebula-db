@@ -2,86 +2,198 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Nebola Peer Tracker</title>
+<title>Nebola Store</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {
-  margin: 0;
-  padding: 20px;
-  font-family: Arial, sans-serif;
-  background: #121212;
-  color: white;
-}
-h1 { text-align: center; margin-bottom: 15px; }
-#peerList { margin-top: 20px; }
-.peerItem {
-  background: #1e1e1e;
-  border-radius: 6px;
-  padding: 10px;
-  margin: 7px 0;
-}
+/* RESET */
+*{margin:0;padding:0;box-sizing:border-box;font-family:'Segoe UI',sans-serif;}
+body{background:#121212;color:#e0e0e0;transition:background 0.3s,color 0.3s;}
+a{text-decoration:none;color:inherit;}
+button{cursor:pointer;transition:0.3s;}
+button:hover{opacity:0.85;}
+
+/* HEADER */
+header{display:flex;justify-content:space-between;align-items:center;padding:15px 30px;background:#1f1f1f;box-shadow:0 2px 5px rgba(0,0,0,0.5);}
+.logo{font-size:28px;font-weight:bold;color:#00aaff;}
+nav button{background:#0078d7;border:none;color:white;padding:10px 20px;margin-left:10px;border-radius:5px;font-weight:bold;transition:0.3s;}
+
+/* CONTAINER */
+.container{padding:20px;max-width:1200px;margin:auto;}
+
+/* SEARCH & SUGGEST */
+#searchBar{display:flex;gap:10px;margin-bottom:20px;position:relative;}
+#searchInput{flex:1;padding:10px;border-radius:5px;border:none;background:#2a2a2a;color:white;}
+#searchSuggestions{position:absolute;background:#1e1e1e;padding:5px;border-radius:5px;max-height:200px;overflow-y:auto;display:none;z-index:10;}
+
+/* STORE CARDS */
+.store-grid{display:grid;grid-template-columns:repeat(auto-fill,minmax(250px,1fr));gap:20px;}
+.card{background:#1e1e1e;padding:15px;border-radius:10px;box-shadow:0 4px 10px rgba(0,0,0,0.5);transition:all 0.3s ease, transform 0.3s ease;opacity:0;transform:translateY(20px);}
+.card.show{opacity:1;transform:translateY(0);}
+.card img{width:100%;height:140px;object-fit:cover;border-radius:5px;margin-bottom:10px;transition:transform 0.3s;}
+.card img:hover{transform:scale(1.05);}
+.card h3{margin-bottom:5px;}
+.card p{font-size:0.9em;margin-bottom:10px;color:#ccc;}
+.card button{background:#00aaff;border:none;color:white;padding:8px 12px;border-radius:5px;transition:0.3s;}
+.card button:hover{transform:scale(1.05);}
+
+/* PUBLICAR */
+.publish-section{background:#1f1f1f;padding:20px;border-radius:10px;box-shadow:0 2px 8px rgba(0,0,0,0.7);}
+.publish-section input, .publish-section textarea, .publish-section select{width:100%;padding:10px;margin:5px 0;border-radius:5px;border:none;background:#2a2a2a;color:white;}
+.publish-section button{margin-top:10px;background:#00ff88;color:#000;font-weight:bold;padding:10px 20px;border-radius:5px;}
+
+/* CATEGORIES */
+.categories{margin:10px 0;display:flex;gap:10px;overflow-x:auto;}
+.categories button{padding:5px 10px;background:#0078d7;border:none;color:white;border-radius:5px;flex-shrink:0;transition:0.3s;}
+.categories button.active{background:#00aaff;}
+
+/* FOOTER */
+footer{text-align:center;padding:15px;opacity:0.6;background:#1f1f1f;margin-top:30px;}
 </style>
 </head>
 <body>
 
-<h1>Nebola Peer Tracker</h1>
-<p>Mostra os peers conectados em tempo real</p>
+<header>
+    <div class="logo">Nebola Store</div>
+    <nav>
+        <button onclick="showSection('store')">Loja</button>
+        <button onclick="showSection('publish')">Publicar</button>
+    </nav>
+</header>
 
-<div id="myId"></div>
-<div id="peerList"></div>
+<div class="container">
 
-<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
+    <!-- LOJA -->
+    <div id="store">
+        <div id="searchBar">
+            <input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="renderStore()">
+            <div id="searchSuggestions"></div>
+        </div>
+        <div class="categories" id="categoriesBar"></div>
+        <div class="store-grid" id="storeGrid"></div>
+    </div>
+
+    <!-- PUBLICAR -->
+    <div id="publish" style="display:none;">
+        <div class="publish-section">
+            <h2>📦 Publicar App</h2>
+            <input id="appName" placeholder="Nome do App">
+            <textarea id="appDesc" placeholder="Descrição"></textarea>
+            <input id="appLink" placeholder="Link para download">
+            <input id="appImg" placeholder="URL da capa (opcional)">
+            <select id="appCategory">
+                <option>Jogos</option>
+                <option>Ferramentas</option>
+                <option>Educação</option>
+                <option>Outros</option>
+            </select>
+            <div>
+                <input type="checkbox" id="terms"> Aceito termos de código e antipirataria
+            </div>
+            <button onclick="publishApp()">Publicar</button>
+        </div>
+    </div>
+
+</div>
+
+<footer>Nebola Store © 2026</footer>
+
 <script>
-  // Conecta ao servidor PeerJS público
-  const peer = new Peer(undefined, {
-    host: 'peerjs.com',
-    port: 443,
-    secure: true
-  });
+const API = "http://0.0.0.0:8000";
 
-  let connectedPeers = {};
+let apps = [];
+let categories = ["Todos","Jogos","Ferramentas","Educação","Outros"];
 
-  const peerListDiv = document.getElementById("peerList");
-  const myIdDiv = document.getElementById("myId");
+function showSection(id){
+    document.getElementById("store").style.display="none";
+    document.getElementById("publish").style.display="none";
+    document.getElementById(id).style.display="block";
+}
 
-  // Mostra seu próprio ID
-  peer.on('open', id => {
-    myIdDiv.textContent = "Seu Peer ID: " + id;
-  });
+// ----------------- CARREGAR APPS -----------------
+async function loadApps(){
+    try{
+        const res = await fetch(API+"/apps");
+        apps = await res.json();
+        renderStore();
+        renderCategories();
+        renderSuggestions();
+    }catch(e){console.log(e);}
+}
 
-  // Quando outro usuário conecta
-  peer.on('connection', conn => {
-    conn.on('data', data => {
-      // Aqui você pode receber infos de outros peers
-      connectedPeers[data.id] = data;
-      updatePeerList();
+// ----------------- RENDER STORE -----------------
+function renderStore(categoryFilter="Todos"){
+    const grid = document.getElementById("storeGrid");
+    grid.innerHTML="";
+    let query = document.getElementById("searchInput").value.toLowerCase();
+    apps.forEach(a=>{
+        if(categoryFilter!="Todos" && a.category!=categoryFilter) return;
+        if(a.name.toLowerCase().includes(query) || a.desc.toLowerCase().includes(query)){
+            let card = document.createElement("div");
+            card.className="card";
+            card.innerHTML=`<img src="${a.img||'https://via.placeholder.com/300x140'}">
+                              <h3>${a.name}</h3>
+                              <p>${a.desc}</p>
+                              <button onclick="window.open('${a.link}','_blank')">Baixar</button>`;
+            grid.appendChild(card);
+            setTimeout(()=>card.classList.add("show"),50);
+        }
     });
-  });
+}
 
-  // Conectar manualmente a outro peer se você souber o ID
-  function connectToPeer(id) {
-    const conn = peer.connect(id);
-    conn.on('open', () => {
-      conn.send({ id: peer.id, message: "Olá de " + peer.id });
+// ----------------- CATEGORIES -----------------
+function renderCategories(){
+    const bar = document.getElementById("categoriesBar");
+    bar.innerHTML="";
+    categories.forEach(cat=>{
+        let btn = document.createElement("button");
+        btn.textContent=cat;
+        btn.onclick=()=>renderStore(cat);
+        bar.appendChild(btn);
     });
-  }
+}
 
-  function updatePeerList() {
-    peerListDiv.innerHTML = "";
-    Object.keys(connectedPeers).forEach(id => {
-      const div = document.createElement("div");
-      div.className = "peerItem";
-      div.textContent = "Peer: " + id;
-      peerListDiv.appendChild(div);
+// ----------------- SUGESTÕES -----------------
+function renderSuggestions(){
+    const suggestions = document.getElementById("searchSuggestions");
+    suggestions.innerHTML="";
+    if(!document.getElementById("searchInput").value) return;
+    apps.forEach(a=>{
+        if(a.name.toLowerCase().includes(document.getElementById("searchInput").value.toLowerCase())){
+            let div = document.createElement("div");
+            div.style.padding="5px";
+            div.style.cursor="pointer";
+            div.innerText=a.name;
+            div.onclick=()=>{document.getElementById("searchInput").value=a.name; renderStore();}
+            suggestions.appendChild(div);
+        }
     });
-  }
+    suggestions.style.display=suggestions.childElementCount?"block":"none";
+}
 
-  // Exemplo: conectar via prompt (você pode trocar por input no app)
-  setTimeout(() => {
-    const targetPeer = prompt("Digite Peer ID para conectar (deixe vazio para só observar):");
-    if (targetPeer) connectToPeer(targetPeer);
-  }, 5000);
+// ----------------- PUBLICAR -----------------
+async function publishApp(){
+    if(!document.getElementById("terms").checked){ alert("Aceite os termos!"); return; }
+    let app = {
+        name: document.getElementById("appName").value,
+        desc: document.getElementById("appDesc").value,
+        link: document.getElementById("appLink").value,
+        img: document.getElementById("appImg").value,
+        category: document.getElementById("appCategory").value
+    };
+    try{
+        await fetch(API+"/publish",{method:"POST",headers:{"Content-Type":"application/json"},body:JSON.stringify(app)});
+        alert("App publicado!");
+        document.getElementById("appName").value="";
+        document.getElementById("appDesc").value="";
+        document.getElementById("appLink").value="";
+        document.getElementById("appImg").value="";
+        document.getElementById("appCategory").value="Outros";
+        document.getElementById("terms").checked=false;
+        loadApps();
+    }catch(e){console.log(e);}
+}
 
+loadApps();
 </script>
 
 </body>
