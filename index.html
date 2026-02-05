@@ -3,46 +3,85 @@
 <head>
 <meta charset="UTF-8">
 <title>Nebola Peer Tracker</title>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
-<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
 <style>
-body {font-family: Arial; background:#121212; color:white; text-align:center; padding:20px;}
-h1 {margin-bottom:20px;}
-ul {list-style:none; padding:0;}
-li {padding:10px; background:#1f1f1f; margin:5px 0; border-radius:5px;}
+body {
+  margin: 0;
+  padding: 20px;
+  font-family: Arial, sans-serif;
+  background: #121212;
+  color: white;
+}
+h1 { text-align: center; margin-bottom: 15px; }
+#peerList { margin-top: 20px; }
+.peerItem {
+  background: #1e1e1e;
+  border-radius: 6px;
+  padding: 10px;
+  margin: 7px 0;
+}
 </style>
 </head>
 <body>
 
 <h1>Nebola Peer Tracker</h1>
-<ul id="peers"></ul>
+<p>Mostra os peers conectados em tempo real</p>
 
+<div id="myId"></div>
+<div id="peerList"></div>
+
+<script src="https://unpkg.com/peerjs@1.4.7/dist/peerjs.min.js"></script>
 <script>
-// Config do Firebase (substitua pelos seus dados)
-const firebaseConfig = {
-  apiKey: "SUA_API_KEY",
-  authDomain: "SEU_AUTH_DOMAIN",
-  databaseURL: "SUA_DATABASE_URL",
-  projectId: "SEU_PROJECT_ID",
-  storageBucket: "SEU_BUCKET",
-  messagingSenderId: "SEU_SENDER_ID",
-  appId: "SEU_APP_ID"
-};
+  // Conecta ao servidor PeerJS público
+  const peer = new Peer(undefined, {
+    host: 'peerjs.com',
+    port: 443,
+    secure: true
+  });
 
-firebase.initializeApp(firebaseConfig);
-const db = firebase.database();
+  let connectedPeers = {};
 
-// Atualiza lista de peers
-db.ref("peers").on("value", snapshot => {
-    const list = document.getElementById("peers");
-    list.innerHTML = "";
-    const data = snapshot.val() || {};
-    Object.keys(data).forEach(ip => {
-        const li = document.createElement("li");
-        li.textContent = `${ip} - ${data[ip].name}`;
-        list.appendChild(li);
+  const peerListDiv = document.getElementById("peerList");
+  const myIdDiv = document.getElementById("myId");
+
+  // Mostra seu próprio ID
+  peer.on('open', id => {
+    myIdDiv.textContent = "Seu Peer ID: " + id;
+  });
+
+  // Quando outro usuário conecta
+  peer.on('connection', conn => {
+    conn.on('data', data => {
+      // Aqui você pode receber infos de outros peers
+      connectedPeers[data.id] = data;
+      updatePeerList();
     });
-});
+  });
+
+  // Conectar manualmente a outro peer se você souber o ID
+  function connectToPeer(id) {
+    const conn = peer.connect(id);
+    conn.on('open', () => {
+      conn.send({ id: peer.id, message: "Olá de " + peer.id });
+    });
+  }
+
+  function updatePeerList() {
+    peerListDiv.innerHTML = "";
+    Object.keys(connectedPeers).forEach(id => {
+      const div = document.createElement("div");
+      div.className = "peerItem";
+      div.textContent = "Peer: " + id;
+      peerListDiv.appendChild(div);
+    });
+  }
+
+  // Exemplo: conectar via prompt (você pode trocar por input no app)
+  setTimeout(() => {
+    const targetPeer = prompt("Digite Peer ID para conectar (deixe vazio para só observar):");
+    if (targetPeer) connectToPeer(targetPeer);
+  }, 5000);
+
 </script>
 
 </body>
