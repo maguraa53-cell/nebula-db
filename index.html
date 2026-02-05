@@ -1,0 +1,130 @@
+<!DOCTYPE html>
+<html lang="pt-BR">
+<head>
+<meta charset="UTF-8">
+<title>Nebola Store</title>
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<style>
+body {margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#e0e0e0;}
+header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#1f1f1f;box-shadow:0 2px 5px rgba(0,0,0,0.5);}
+.logo{font-size:26px;font-weight:bold;}
+nav{display:flex;padding:10px;gap:10px;background:#1a1a1a;}
+button{background:#0078d7;border:none;color:white;padding:8px 14px;border-radius:5px;cursor:pointer;font-weight:bold;transition:0.3s;}
+button:hover{background:#005fa3;transform:scale(1.05);}
+.container{padding:20px;}
+.card{background:#1e1e1e;padding:15px;border-radius:10px;margin-bottom:15px;box-shadow:0 2px 8px rgba(0,0,0,0.7);transition:all 0.3s ease;opacity:0;transform:translateY(20px);}
+.card.show{opacity:1;transform:translateY(0);}
+.card img{max-width:100%;border-radius:5px;margin-bottom:10px;transition:0.3s;}
+.card img:hover{transform:scale(1.05);}
+input, textarea{width:100%;padding:8px;border-radius:5px;border:1px solid #333;margin-top:5px;background:#2a2a2a;color:white;}
+.checkbox{margin-top:10px;}
+footer{text-align:center;padding:15px;opacity:0.6;background:#1f1f1f;}
+#searchInput{padding:8px;width:50%;border-radius:5px;border:1px solid #333;background:#2a2a2a;color:white;margin-bottom:15px;}
+form label{display:block;margin-top:10px;}
+</style>
+</head>
+<body>
+<header>
+    <div class="logo">Nebola Store</div>
+</header>
+<nav>
+    <button onclick="showSection('storeSection')">Loja</button>
+    <button onclick="showSection('publishSection')">Publicar</button>
+</nav>
+
+<div class="container">
+    <!-- Loja -->
+    <div id="storeSection">
+        <h2>🛒 Loja</h2>
+        <input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
+        <div id="store"></div>
+    </div>
+
+    <!-- Publicar -->
+    <div id="publishSection" style="display:none;">
+        <h2>📦 Publicar App</h2>
+        <form id="publishForm">
+            <label>Nome do App</label>
+            <input id="appName" placeholder="Nome do App" required>
+            <label>Descrição do App</label>
+            <textarea id="appDesc" placeholder="Descrição do App" required></textarea>
+            <label>URL da Imagem (opcional)</label>
+            <input id="appImg" placeholder="https://...">
+            <label>Link Google Drive ou GitHub</label>
+            <input id="appLink" placeholder="https://..." required>
+            <div class="checkbox">
+                <input type="checkbox" id="terms" required> Aceito termos de código e antipirataria
+            </div>
+            <button type="button" onclick="publishApp()">Publicar</button>
+        </form>
+    </div>
+</div>
+
+<footer>Nebola Store © 2026</footer>
+
+<script>
+// Array que armazena apps (funciona dentro do próprio código)
+let apps = [
+    {
+        name: "Exemplo App",
+        desc: "Este é um app de exemplo",
+        img: "https://via.placeholder.com/400x200?text=Exemplo",
+        link: "https://github.com"
+    }
+];
+
+// Alterna seções
+function showSection(id){
+    ['storeSection','publishSection'].forEach(s => document.getElementById(s).style.display='none');
+    document.getElementById(id).style.display='block';
+}
+
+// Publicar app no array
+function publishApp(){
+    const name = document.getElementById('appName').value.trim();
+    const desc = document.getElementById('appDesc').value.trim();
+    const img = document.getElementById('appImg').value.trim() || 'https://via.placeholder.com/400x200?text=No+Image';
+    const link = document.getElementById('appLink').value.trim();
+    const terms = document.getElementById('terms').checked;
+
+    if(!name || !desc || !link || !terms){
+        alert('Preencha todos os campos obrigatórios e aceite os termos!');
+        return;
+    }
+
+    const app = {name, desc, img, link};
+    apps.push(app);
+    renderStore(apps);
+    document.getElementById('publishForm').reset();
+    alert('App publicado localmente!');
+}
+
+// Renderizar apps na Loja
+function renderStore(list){
+    const store = document.getElementById('store');
+    store.innerHTML='';
+    list.forEach(a=>{
+        const card = document.createElement('div');
+        card.className='card';
+        card.innerHTML = `<img src="${a.img}" alt="${a.name}">
+                          <h3>${a.name}</h3>
+                          <p>${a.desc}</p>
+                          <a href="${a.link}" target="_blank"><button>Baixar</button></a>`;
+        store.appendChild(card);
+        setTimeout(()=>card.classList.add('show'),50);
+    });
+}
+
+// Pesquisa
+function searchApps(){
+    const query = document.getElementById('searchInput').value.toLowerCase();
+    const filtered = apps.filter(a => a.name.toLowerCase().includes(query));
+    renderStore(filtered);
+}
+
+// Inicializa
+renderStore(apps);
+showSection('storeSection');
+</script>
+</body>
+</html>
