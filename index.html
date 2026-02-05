@@ -21,27 +21,20 @@ input, textarea{width:100%;padding:8px;border-radius:5px;border:1px solid #333;m
 footer{text-align:center;padding:15px;opacity:0.6;background:#1f1f1f;}
 #searchInput{padding:8px;width:50%;border-radius:5px;border:1px solid #333;background:#2a2a2a;color:white;margin-bottom:15px;}
 form label{display:block;margin-top:10px;}
+#publishBox{display:none;margin-top:20px;}
 </style>
 </head>
 <body>
 <header>
     <div class="logo">Nebola Store</div>
+    <button onclick="togglePublish()">Publicar App</button>
 </header>
-<nav>
-    <button onclick="showSection('storeSection')">Loja</button>
-    <button onclick="showSection('publishSection')">Publicar</button>
-</nav>
 
 <div class="container">
-    <!-- Loja -->
-    <div id="storeSection">
-        <h2>🛒 Loja</h2>
-        <input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
-        <div id="store"></div>
-    </div>
+    <input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
+    <div id="store"></div>
 
-    <!-- Publicar -->
-    <div id="publishSection" style="display:none;">
+    <div id="publishBox">
         <h2>📦 Publicar App</h2>
         <form id="publishForm">
             <label>Nome do App</label>
@@ -52,6 +45,8 @@ form label{display:block;margin-top:10px;}
             <input id="appImg" placeholder="https://...">
             <label>Link Google Drive ou GitHub</label>
             <input id="appLink" placeholder="https://..." required>
+            <label>Token GitHub</label>
+            <input id="ghToken" placeholder="Seu token pessoal (edit repo)" required>
             <div class="checkbox">
                 <input type="checkbox" id="terms" required> Aceito termos de código e antipirataria
             </div>
@@ -63,50 +58,26 @@ form label{display:block;margin-top:10px;}
 <footer>Nebola Store © 2026</footer>
 
 <script>
-// Array que armazena apps (funciona dentro do próprio código)
-let apps = [
-    {
-        name: "Exemplo App",
-        desc: "Este é um app de exemplo",
-        img: "https://via.placeholder.com/400x200?text=Exemplo",
-        link: "https://github.com"
-    }
-];
+const REPO_OWNER = "maguraa53-cell";
+const REPO_NAME = "nebula-db";
+const FILE_PATH = "apps.json";
 
-// Alterna seções
-function showSection(id){
-    ['storeSection','publishSection'].forEach(s => document.getElementById(s).style.display='none');
-    document.getElementById(id).style.display='block';
+let apps = [];
+
+// Toggle publicar
+function togglePublish(){
+    const box = document.getElementById("publishBox");
+    box.style.display = box.style.display=="none"?"block":"none";
 }
 
-// Publicar app no array
-function publishApp(){
-    const name = document.getElementById('appName').value.trim();
-    const desc = document.getElementById('appDesc').value.trim();
-    const img = document.getElementById('appImg').value.trim() || 'https://via.placeholder.com/400x200?text=No+Image';
-    const link = document.getElementById('appLink').value.trim();
-    const terms = document.getElementById('terms').checked;
-
-    if(!name || !desc || !link || !terms){
-        alert('Preencha todos os campos obrigatórios e aceite os termos!');
-        return;
-    }
-
-    const app = {name, desc, img, link};
-    apps.push(app);
-    renderStore(apps);
-    document.getElementById('publishForm').reset();
-    alert('App publicado localmente!');
-}
-
-// Renderizar apps na Loja
+// Renderizar apps
 function renderStore(list){
-    const store = document.getElementById('store');
+    const store = document.getElementById("store");
     store.innerHTML='';
     list.forEach(a=>{
         const card = document.createElement('div');
         card.className='card';
-        card.innerHTML = `<img src="${a.img}" alt="${a.name}">
+        card.innerHTML = `<img src="${a.img||'https://via.placeholder.com/400x200?text=No+Image'}" alt="${a.name}">
                           <h3>${a.name}</h3>
                           <p>${a.desc}</p>
                           <a href="${a.link}" target="_blank"><button>Baixar</button></a>`;
@@ -118,13 +89,67 @@ function renderStore(list){
 // Pesquisa
 function searchApps(){
     const query = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = apps.filter(a => a.name.toLowerCase().includes(query));
+    const filtered = apps.filter(a=>a.name.toLowerCase().includes(query));
     renderStore(filtered);
 }
 
-// Inicializa
-renderStore(apps);
-showSection('storeSection');
+// Carregar apps do GitHub
+async function loadApps(){
+    try{
+        const res = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}`);
+        apps = await res.json();
+        renderStore(apps);
+    }catch(e){
+        console.error("Erro carregando apps:", e);
+    }
+}
+
+// Publicar app no GitHub
+async function publishApp(){
+    const name = document.getElementById('appName').value.trim();
+    const desc = document.getElementById('appDesc').value.trim();
+    const img = document.getElementById('appImg').value.trim() || '';
+    const link = document.getElementById('appLink').value.trim();
+    const token = document.getElementById('ghToken').value.trim();
+    const terms = document.getElementById('terms').checked;
+
+    if(!name || !desc || !link || !token || !terms){
+        alert("Preencha todos os campos e aceite os termos!");
+        return;
+    }
+
+    apps.push({name,desc,img,link});
+
+    try{
+        // Pega o SHA atual do arquivo
+        const shaRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`);
+        const shaData = await shaRes.json();
+        const sha = shaData.sha;
+
+        // Atualiza o arquivo apps.json
+        await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
+            method:"PUT",
+            headers:{
+                Authorization:`token ${token}`,
+                "Content-Type":"application/json"
+            },
+            body:JSON.stringify({
+                message:`Publicar app: ${name}`,
+                content:btoa(JSON.stringify(apps,null,2)),
+                sha: sha
+            })
+        });
+
+        alert("App publicado com sucesso!");
+        renderStore(apps);
+        document.getElementById('publishForm').reset();
+    }catch(e){
+        console.error(e);
+        alert("Erro ao publicar app. Verifique o token e permissões.");
+    }
+}
+
+loadApps();
 </script>
 </body>
 </html>
