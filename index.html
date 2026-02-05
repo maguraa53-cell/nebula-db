@@ -4,152 +4,148 @@
 <meta charset="UTF-8">
 <title>Nebola Store</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
+
 <style>
-body {margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#e0e0e0;}
-header{display:flex;justify-content:space-between;align-items:center;padding:15px 20px;background:#1f1f1f;box-shadow:0 2px 5px rgba(0,0,0,0.5);}
-.logo{font-size:26px;font-weight:bold;}
-nav{display:flex;padding:10px;gap:10px;background:#1a1a1a;}
-button{background:#0078d7;border:none;color:white;padding:8px 14px;border-radius:5px;cursor:pointer;font-weight:bold;transition:0.3s;}
-button:hover{background:#005fa3;transform:scale(1.05);}
-.container{padding:20px;}
-.card{background:#1e1e1e;padding:15px;border-radius:10px;margin-bottom:15px;box-shadow:0 2px 8px rgba(0,0,0,0.7);transition:all 0.3s ease;opacity:0;transform:translateY(20px);}
-.card.show{opacity:1;transform:translateY(0);}
-.card img{max-width:100%;border-radius:5px;margin-bottom:10px;transition:0.3s;}
-.card img:hover{transform:scale(1.05);}
-input, textarea{width:100%;padding:8px;border-radius:5px;border:1px solid #333;margin-top:5px;background:#2a2a2a;color:white;}
-.checkbox{margin-top:10px;}
-footer{text-align:center;padding:15px;opacity:0.6;background:#1f1f1f;}
-#searchInput{padding:8px;width:50%;border-radius:5px;border:1px solid #333;background:#2a2a2a;color:white;margin-bottom:15px;}
-form label{display:block;margin-top:10px;}
-#publishBox{display:none;margin-top:20px;}
+body{margin:0;background:#121212;color:#eee;font-family:Segoe UI}
+header{background:#1f1f1f;padding:15px;font-size:24px}
+nav{padding:10px;background:#181818}
+button{background:#0078d7;border:0;color:#fff;padding:8px 12px;border-radius:5px;cursor:pointer}
+input,textarea{width:100%;background:#2a2a2a;color:white;border:0;padding:8px;margin-top:5px}
+.card{background:#1e1e1e;padding:12px;margin-top:10px;border-radius:8px}
+img{max-width:100%;border-radius:5px}
+#publishSection{display:none}
 </style>
 </head>
+
 <body>
-<header>
-    <div class="logo">Nebola Store</div>
-    <button onclick="togglePublish()">Publicar App</button>
-</header>
 
-<div class="container">
-    <input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
-    <div id="store"></div>
+<header>🚀 Nebola Store</header>
 
-    <div id="publishBox">
-        <h2>📦 Publicar App</h2>
-        <form id="publishForm">
-            <label>Nome do App</label>
-            <input id="appName" placeholder="Nome do App" required>
-            <label>Descrição do App</label>
-            <textarea id="appDesc" placeholder="Descrição do App" required></textarea>
-            <label>URL da Imagem (opcional)</label>
-            <input id="appImg" placeholder="https://...">
-            <label>Link Google Drive ou GitHub</label>
-            <input id="appLink" placeholder="https://..." required>
-            <label>Token GitHub</label>
-            <input id="ghToken" placeholder="Seu token pessoal (edit repo)" required>
-            <div class="checkbox">
-                <input type="checkbox" id="terms" required> Aceito termos de código e antipirataria
-            </div>
-            <button type="button" onclick="publishApp()">Publicar</button>
-        </form>
-    </div>
+<nav>
+<button onclick="showStore()">Loja</button>
+<button id="loginBtn" onclick="login()">Login GitHub</button>
+<button id="publishBtn" onclick="showPublish()" style="display:none">Publicar</button>
+</nav>
+
+<div style="padding:15px">
+
+<div id="storeSection">
+<h2>Apps</h2>
+<div id="store"></div>
 </div>
 
-<footer>Nebola Store © 2026</footer>
+<div id="publishSection">
+<h2>Publicar App</h2>
+
+<input id="name" placeholder="Nome">
+<textarea id="desc" placeholder="Descrição"></textarea>
+<input id="img" placeholder="Imagem (opcional)">
+<input id="link" placeholder="Link Download">
+<br><br>
+<button onclick="publish()">Publicar</button>
+</div>
+
+</div>
 
 <script>
-const REPO_OWNER = "maguraa53-cell";
-const REPO_NAME = "nebula-db";
-const FILE_PATH = "apps.json";
+const CLIENT_ID="SEU_CLIENT_ID_AQUI";
+const REPO="maguraa53-cell/nebula-db";
+const FILE_PATH="apps.json";
 
-let apps = [];
+let token=null;
+let apps=[];
 
-// Toggle publicar
-function togglePublish(){
-    const box = document.getElementById("publishBox");
-    box.style.display = box.style.display=="none"?"block":"none";
+// ---------- LOGIN ----------
+function login(){
+location.href=`https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=repo`;
 }
 
-// Renderizar apps
-function renderStore(list){
-    const store = document.getElementById("store");
-    store.innerHTML='';
-    list.forEach(a=>{
-        const card = document.createElement('div');
-        card.className='card';
-        card.innerHTML = `<img src="${a.img||'https://via.placeholder.com/400x200?text=No+Image'}" alt="${a.name}">
-                          <h3>${a.name}</h3>
-                          <p>${a.desc}</p>
-                          <a href="${a.link}" target="_blank"><button>Baixar</button></a>`;
-        store.appendChild(card);
-        setTimeout(()=>card.classList.add('show'),50);
-    });
+if(location.search.includes("code=")){
+fetch("https://corsproxy.io/?https://github.com/login/oauth/access_token",{
+method:"POST",
+headers:{"Content-Type":"application/json"},
+body:JSON.stringify({
+client_id:CLIENT_ID,
+code:new URLSearchParams(location.search).get("code")
+})
+}).then(r=>r.text()).then(t=>{
+token=new URLSearchParams(t).get("access_token");
+document.getElementById("loginBtn").innerText="Logado";
+document.getElementById("publishBtn").style.display="inline";
+});
 }
 
-// Pesquisa
-function searchApps(){
-    const query = document.getElementById('searchInput').value.toLowerCase();
-    const filtered = apps.filter(a=>a.name.toLowerCase().includes(query));
-    renderStore(filtered);
+// ---------- LOAD APPS ----------
+fetch(`https://raw.githubusercontent.com/${REPO}/main/apps.json`)
+.then(r=>r.json())
+.then(d=>{
+apps=d;
+render();
+});
+
+// ---------- RENDER ----------
+function render(){
+let s=document.getElementById("store");
+s.innerHTML="";
+apps.forEach(a=>{
+s.innerHTML+=`
+<div class="card">
+<img src="${a.img}">
+<h3>${a.name}</h3>
+<p>${a.desc}</p>
+<a href="${a.link}" target="_blank">
+<button>Baixar</button>
+</a>
+</div>`;
+});
 }
 
-// Carregar apps do GitHub
-async function loadApps(){
-    try{
-        const res = await fetch(`https://raw.githubusercontent.com/${REPO_OWNER}/${REPO_NAME}/main/${FILE_PATH}`);
-        apps = await res.json();
-        renderStore(apps);
-    }catch(e){
-        console.error("Erro carregando apps:", e);
-    }
+// ---------- PUBLICAR ----------
+function publish(){
+if(!token){alert("Faça login");return;}
+
+let app={
+name:name.value,
+desc:desc.value,
+img:img.value || "https://via.placeholder.com/400x200",
+link:link.value
+};
+
+apps.push(app);
+
+fetch(`https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`,{
+headers:{Authorization:`token ${token}`}
+})
+.then(r=>r.json())
+.then(file=>{
+fetch(`https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`,{
+method:"PUT",
+headers:{
+Authorization:`token ${token}`,
+"Content-Type":"application/json"
+},
+body:JSON.stringify({
+message:"Novo app",
+content:btoa(JSON.stringify(apps,null,2)),
+sha:file.sha
+})
+}).then(()=>{
+alert("Publicado!");
+render();
+showStore();
+});
 }
 
-// Publicar app no GitHub
-async function publishApp(){
-    const name = document.getElementById('appName').value.trim();
-    const desc = document.getElementById('appDesc').value.trim();
-    const img = document.getElementById('appImg').value.trim() || '';
-    const link = document.getElementById('appLink').value.trim();
-    const token = document.getElementById('ghToken').value.trim();
-    const terms = document.getElementById('terms').checked;
-
-    if(!name || !desc || !link || !token || !terms){
-        alert("Preencha todos os campos e aceite os termos!");
-        return;
-    }
-
-    apps.push({name,desc,img,link});
-
-    try{
-        // Pega o SHA atual do arquivo
-        const shaRes = await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`);
-        const shaData = await shaRes.json();
-        const sha = shaData.sha;
-
-        // Atualiza o arquivo apps.json
-        await fetch(`https://api.github.com/repos/${REPO_OWNER}/${REPO_NAME}/contents/${FILE_PATH}`,{
-            method:"PUT",
-            headers:{
-                Authorization:`token ${token}`,
-                "Content-Type":"application/json"
-            },
-            body:JSON.stringify({
-                message:`Publicar app: ${name}`,
-                content:btoa(JSON.stringify(apps,null,2)),
-                sha: sha
-            })
-        });
-
-        alert("App publicado com sucesso!");
-        renderStore(apps);
-        document.getElementById('publishForm').reset();
-    }catch(e){
-        console.error(e);
-        alert("Erro ao publicar app. Verifique o token e permissões.");
-    }
+// ---------- UI ----------
+function showStore(){
+storeSection.style.display="block";
+publishSection.style.display="none";
 }
-
-loadApps();
+function showPublish(){
+storeSection.style.display="none";
+publishSection.style.display="block";
+}
 </script>
+
 </body>
 </html>
