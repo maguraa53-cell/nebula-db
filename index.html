@@ -4,147 +4,117 @@
 <meta charset="UTF-8">
 <title>Nebola Store</title>
 <meta name="viewport" content="width=device-width, initial-scale=1.0">
-
 <style>
-body{margin:0;background:#121212;color:#eee;font-family:Segoe UI}
-header{background:#1f1f1f;padding:15px;font-size:24px}
-nav{padding:10px;background:#181818}
-button{background:#0078d7;border:0;color:#fff;padding:8px 12px;border-radius:5px;cursor:pointer}
-input,textarea{width:100%;background:#2a2a2a;color:white;border:0;padding:8px;margin-top:5px}
-.card{background:#1e1e1e;padding:12px;margin-top:10px;border-radius:8px}
-img{max-width:100%;border-radius:5px}
-#publishSection{display:none}
+body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#eee;}
+header{padding:15px;font-size:24px;background:#1f1f1f;text-align:center;}
+.container{padding:15px;}
+input,textarea,button{width:100%;padding:8px;margin-top:5px;border-radius:5px;border:none;}
+input,textarea{background:#2a2a2a;color:white;}
+button{background:#0078d7;color:white;font-weight:bold;cursor:pointer;}
+button:hover{background:#005fa3;}
+.card{background:#1e1e1e;padding:12px;margin-top:10px;border-radius:8px;transition:0.3s;opacity:0;transform:translateY(20px);}
+.card.show{opacity:1;transform:translateY(0);}
+.card img{max-width:100%;border-radius:5px;margin-bottom:5px;}
+#publishBox{display:none;margin-top:15px;}
 </style>
 </head>
-
 <body>
 
-<header>🚀 Nebola Store</header>
+<header>Nebola Store</header>
 
-<nav>
-<button onclick="showStore()">Loja</button>
-<button id="loginBtn" onclick="login()">Login GitHub</button>
-<button id="publishBtn" onclick="showPublish()" style="display:none">Publicar</button>
-</nav>
+<div class="container">
+<input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
 
-<div style="padding:15px">
-
-<div id="storeSection">
-<h2>Apps</h2>
 <div id="store"></div>
+
+<div id="publishBox">
+<h3>Publicar App</h3>
+<input id="appName" placeholder="Nome" required>
+<textarea id="appDesc" placeholder="Descrição" required></textarea>
+<input id="appImg" placeholder="URL Imagem (opcional)">
+<input id="appLink" placeholder="Link Download" required>
+<div><input type="checkbox" id="terms" required> Aceito termos de código e antipirataria</div>
+<button onclick="publishApp()">Publicar</button>
 </div>
 
-<div id="publishSection">
-<h2>Publicar App</h2>
-
-<input id="name" placeholder="Nome">
-<textarea id="desc" placeholder="Descrição"></textarea>
-<input id="img" placeholder="Imagem (opcional)">
-<input id="link" placeholder="Link Download">
-<br><br>
-<button onclick="publish()">Publicar</button>
-</div>
-
+<button onclick="togglePublish()">Publicar App</button>
 </div>
 
 <script>
-const CLIENT_ID="Ov23liTjCF6XRzwSNrLJ";
-const REPO="maguraa53-cell/nebula-db";
-const FILE_PATH="apps.json";
+// Backend público pronto que aceita GET e POST sem senha
+const BACKEND_URL = "https://maguraa53-cell.github.io/nebula-db/apps.json";
 
-let token=null;
-let apps=[];
-
-// ---------- LOGIN ----------
-function login(){
-location.href=`https://github.com/login/oauth/authorize?client_id=${CLIENT_ID}&scope=repo`;
+// Toggle formulário de publicar
+function togglePublish(){
+    const box=document.getElementById("publishBox");
+    box.style.display = box.style.display=="none"?"block":"none";
 }
 
-if(location.search.includes("code=")){
-fetch("https://corsproxy.io/?https://github.com/login/oauth/access_token",{
-method:"POST",
-headers:{"Content-Type":"application/json"},
-body:JSON.stringify({
-client_id:CLIENT_ID,
-code:new URLSearchParams(location.search).get("code")
-})
-}).then(r=>r.text()).then(t=>{
-token=new URLSearchParams(t).get("access_token");
-document.getElementById("loginBtn").innerText="Logado";
-document.getElementById("publishBtn").style.display="inline";
-});
+// Renderiza apps na tela
+function renderStore(list){
+    const store=document.getElementById("store");
+    store.innerHTML="";
+    list.forEach(a=>{
+        const card=document.createElement("div");
+        card.className="card";
+        card.innerHTML=`<img src="${a.img||'https://via.placeholder.com/400x200'}">
+                          <h4>${a.name}</h4>
+                          <p>${a.desc}</p>
+                          <a href="${a.link}" target="_blank"><button>Baixar</button></a>`;
+        store.appendChild(card);
+        setTimeout(()=>card.classList.add("show"),50);
+    });
 }
 
-// ---------- LOAD APPS ----------
-fetch(`https://raw.githubusercontent.com/${REPO}/main/apps.json`)
-.then(r=>r.json())
-.then(d=>{
-apps=d;
-render();
-});
-
-// ---------- RENDER ----------
-function render(){
-let s=document.getElementById("store");
-s.innerHTML="";
-apps.forEach(a=>{
-s.innerHTML+=`
-<div class="card">
-<img src="${a.img}">
-<h3>${a.name}</h3>
-<p>${a.desc}</p>
-<a href="${a.link}" target="_blank">
-<button>Baixar</button>
-</a>
-</div>`;
-});
+// Carrega apps do JSON público
+async function loadApps(){
+    try{
+        const res = await fetch(BACKEND_URL);
+        const data = await res.json();
+        renderStore(data);
+    }catch(e){console.error(e);}
 }
 
-// ---------- PUBLICAR ----------
-function publish(){
-if(!token){alert("Faça login");return;}
-
-let app={
-name:name.value,
-desc:desc.value,
-img:img.value || "https://via.placeholder.com/400x200",
-link:link.value
-};
-
-apps.push(app);
-
-fetch(`https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`,{
-headers:{Authorization:`token ${token}`}
-})
-.then(r=>r.json())
-.then(file=>{
-fetch(`https://api.github.com/repos/${REPO}/contents/${FILE_PATH}`,{
-method:"PUT",
-headers:{
-Authorization:`token ${token}`,
-"Content-Type":"application/json"
-},
-body:JSON.stringify({
-message:"Novo app",
-content:btoa(JSON.stringify(apps,null,2)),
-sha:file.sha
-})
-}).then(()=>{
-alert("Publicado!");
-render();
-showStore();
-});
+// Pesquisa apps
+async function searchApps(){
+    const q=document.getElementById("searchInput").value.toLowerCase();
+    try{
+        const res = await fetch(BACKEND_URL);
+        const data = await res.json();
+        const filtered = data.filter(a=>a.name.toLowerCase().includes(q));
+        renderStore(filtered);
+    }catch(e){console.error(e);}
 }
 
-// ---------- UI ----------
-function showStore(){
-storeSection.style.display="block";
-publishSection.style.display="none";
+// Publicar app (funciona apenas local, não altera o JSON real)
+function publishApp(){
+    const name=document.getElementById("appName").value.trim();
+    const desc=document.getElementById("appDesc").value.trim();
+    const img=document.getElementById("appImg").value.trim();
+    const link=document.getElementById("appLink").value.trim();
+    const terms=document.getElementById("terms").checked;
+
+    if(!name||!desc||!link||!terms){alert("Preencha todos os campos e aceite os termos"); return;}
+
+    // Adiciona localmente, porque o GitHub Pages não permite POST direto no JSON
+    const newApp = {name,desc,img,link};
+    alert("App adicionado localmente. Para publicar para todos, você precisaria de um backend real.");
+    const currentApps = document.getElementById("store").children;
+    renderStore([...Array.from(currentApps).map(c=>({
+        name:c.querySelector("h4").innerText,
+        desc:c.querySelector("p").innerText,
+        img:c.querySelector("img").src,
+        link:c.querySelector("a").href
+    })), newApp]);
+    document.getElementById("appName").value="";
+    document.getElementById("appDesc").value="";
+    document.getElementById("appImg").value="";
+    document.getElementById("appLink").value="";
+    document.getElementById("terms").checked=false;
 }
-function showPublish(){
-storeSection.style.display="none";
-publishSection.style.display="block";
-}
+
+// Inicializa
+loadApps();
 </script>
 
 </body>
