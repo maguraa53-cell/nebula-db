@@ -2,119 +2,47 @@
 <html lang="pt-BR">
 <head>
 <meta charset="UTF-8">
-<title>Nebola Store</title>
-<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Nebola Peer Tracker</title>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-app-compat.js"></script>
+<script src="https://www.gstatic.com/firebasejs/9.23.0/firebase-database-compat.js"></script>
 <style>
-body{margin:0;font-family:'Segoe UI',sans-serif;background:#121212;color:#eee;}
-header{padding:15px;font-size:24px;background:#1f1f1f;text-align:center;}
-.container{padding:15px;}
-input,textarea,button{width:100%;padding:8px;margin-top:5px;border-radius:5px;border:none;}
-input,textarea{background:#2a2a2a;color:white;}
-button{background:#0078d7;color:white;font-weight:bold;cursor:pointer;}
-button:hover{background:#005fa3;}
-.card{background:#1e1e1e;padding:12px;margin-top:10px;border-radius:8px;transition:0.3s;opacity:0;transform:translateY(20px);}
-.card.show{opacity:1;transform:translateY(0);}
-.card img{max-width:100%;border-radius:5px;margin-bottom:5px;}
-#publishBox{display:none;margin-top:15px;}
+body {font-family: Arial; background:#121212; color:white; text-align:center; padding:20px;}
+h1 {margin-bottom:20px;}
+ul {list-style:none; padding:0;}
+li {padding:10px; background:#1f1f1f; margin:5px 0; border-radius:5px;}
 </style>
 </head>
 <body>
 
-<header>Nebola Store</header>
-
-<div class="container">
-<input type="text" id="searchInput" placeholder="Pesquisar apps..." onkeyup="searchApps()">
-
-<div id="store"></div>
-
-<div id="publishBox">
-<h3>Publicar App</h3>
-<input id="appName" placeholder="Nome" required>
-<textarea id="appDesc" placeholder="Descrição" required></textarea>
-<input id="appImg" placeholder="URL Imagem (opcional)">
-<input id="appLink" placeholder="Link Download" required>
-<div><input type="checkbox" id="terms" required> Aceito termos de código e antipirataria</div>
-<button onclick="publishApp()">Publicar</button>
-</div>
-
-<button onclick="togglePublish()">Publicar App</button>
-</div>
+<h1>Nebola Peer Tracker</h1>
+<ul id="peers"></ul>
 
 <script>
-// Backend público pronto que aceita GET e POST sem senha
-const BACKEND_URL = "https://maguraa53-cell.github.io/nebula-db/apps.json";
+// Config do Firebase (substitua pelos seus dados)
+const firebaseConfig = {
+  apiKey: "SUA_API_KEY",
+  authDomain: "SEU_AUTH_DOMAIN",
+  databaseURL: "SUA_DATABASE_URL",
+  projectId: "SEU_PROJECT_ID",
+  storageBucket: "SEU_BUCKET",
+  messagingSenderId: "SEU_SENDER_ID",
+  appId: "SEU_APP_ID"
+};
 
-// Toggle formulário de publicar
-function togglePublish(){
-    const box=document.getElementById("publishBox");
-    box.style.display = box.style.display=="none"?"block":"none";
-}
+firebase.initializeApp(firebaseConfig);
+const db = firebase.database();
 
-// Renderiza apps na tela
-function renderStore(list){
-    const store=document.getElementById("store");
-    store.innerHTML="";
-    list.forEach(a=>{
-        const card=document.createElement("div");
-        card.className="card";
-        card.innerHTML=`<img src="${a.img||'https://via.placeholder.com/400x200'}">
-                          <h4>${a.name}</h4>
-                          <p>${a.desc}</p>
-                          <a href="${a.link}" target="_blank"><button>Baixar</button></a>`;
-        store.appendChild(card);
-        setTimeout(()=>card.classList.add("show"),50);
+// Atualiza lista de peers
+db.ref("peers").on("value", snapshot => {
+    const list = document.getElementById("peers");
+    list.innerHTML = "";
+    const data = snapshot.val() || {};
+    Object.keys(data).forEach(ip => {
+        const li = document.createElement("li");
+        li.textContent = `${ip} - ${data[ip].name}`;
+        list.appendChild(li);
     });
-}
-
-// Carrega apps do JSON público
-async function loadApps(){
-    try{
-        const res = await fetch(BACKEND_URL);
-        const data = await res.json();
-        renderStore(data);
-    }catch(e){console.error(e);}
-}
-
-// Pesquisa apps
-async function searchApps(){
-    const q=document.getElementById("searchInput").value.toLowerCase();
-    try{
-        const res = await fetch(BACKEND_URL);
-        const data = await res.json();
-        const filtered = data.filter(a=>a.name.toLowerCase().includes(q));
-        renderStore(filtered);
-    }catch(e){console.error(e);}
-}
-
-// Publicar app (funciona apenas local, não altera o JSON real)
-function publishApp(){
-    const name=document.getElementById("appName").value.trim();
-    const desc=document.getElementById("appDesc").value.trim();
-    const img=document.getElementById("appImg").value.trim();
-    const link=document.getElementById("appLink").value.trim();
-    const terms=document.getElementById("terms").checked;
-
-    if(!name||!desc||!link||!terms){alert("Preencha todos os campos e aceite os termos"); return;}
-
-    // Adiciona localmente, porque o GitHub Pages não permite POST direto no JSON
-    const newApp = {name,desc,img,link};
-    alert("App adicionado localmente. Para publicar para todos, você precisaria de um backend real.");
-    const currentApps = document.getElementById("store").children;
-    renderStore([...Array.from(currentApps).map(c=>({
-        name:c.querySelector("h4").innerText,
-        desc:c.querySelector("p").innerText,
-        img:c.querySelector("img").src,
-        link:c.querySelector("a").href
-    })), newApp]);
-    document.getElementById("appName").value="";
-    document.getElementById("appDesc").value="";
-    document.getElementById("appImg").value="";
-    document.getElementById("appLink").value="";
-    document.getElementById("terms").checked=false;
-}
-
-// Inicializa
-loadApps();
+});
 </script>
 
 </body>
